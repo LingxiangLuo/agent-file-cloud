@@ -54,9 +54,12 @@ def ensure_directories():
 def load_config() -> Dict:
     """加载统一配置"""
     if CONFIG_FILE.exists():
-        with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    
+        try:
+            with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"⚠️ 配置文件解析错误：{e}，使用默认配置")
+
     # 默认配置
     return {
         "version": "3.0",
@@ -88,8 +91,11 @@ def load_config() -> Dict:
 def load_db() -> Dict:
     """加载数据库"""
     if DB_FILE.exists():
-        with open(DB_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(DB_FILE, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"⚠️ 数据库文件解析错误：{e}，使用默认数据库")
     return {"files": [], "next_id": 1}
 
 
