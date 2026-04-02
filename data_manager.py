@@ -26,6 +26,7 @@ try:
     HAS_NETWORKX = True
 except ImportError:
     HAS_NETWORKX = False
+    nx = None  # type: ignore[assignment]
 
 
 # 技能目录
@@ -41,10 +42,14 @@ GRAPH_DB = SKILL_DIR / "config" / "graph.json"
 
 
 class DataManager:
-    """核心数据管理器 v4.0"""
-    
-    def __init__(self):
-        """初始化数据管理器"""
+    """核心数据管理器 v4.0
+
+    负责管理文件的元数据、版本、历史记录、向量和知识图谱。
+    所有数据持久化到 JSON 文件，支持文件锁保证并发安全。
+    """
+
+    def __init__(self) -> None:
+        """初始化数据管理器，加载所有数据文件到内存"""
         self.config = self._load_config()
         self.metadata = self._load_metadata()
         self.versions = self._load_versions()
@@ -53,14 +58,22 @@ class DataManager:
         self.graph = self._load_graph()
     
     def _load_config(self) -> Dict:
-        """加载配置"""
+        """加载配置文件
+
+        Returns:
+            配置字典，文件不存在时返回空字典
+        """
         if CONFIG_FILE.exists():
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
                 return json.load(f)
         return {}
     
     def _load_metadata(self) -> Dict:
-        """加载元数据"""
+        """加载元数据文件
+
+        Returns:
+            元数据字典，包含 files 和 next_id 字段
+        """
         if METADATA_DB.exists():
             with open(METADATA_DB, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -77,7 +90,11 @@ class DataManager:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # 释放锁
     
     def _load_versions(self) -> Dict:
-        """加载版本数据"""
+        """加载版本数据文件
+
+        Returns:
+            版本数据字典，包含 versions 列表
+        """
         if VERSIONS_DB.exists():
             with open(VERSIONS_DB, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -93,7 +110,11 @@ class DataManager:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
     
     def _load_history(self) -> Dict:
-        """加载操作历史"""
+        """加载操作历史文件
+
+        Returns:
+            操作历史字典，包含 operations 列表
+        """
         if HISTORY_DB.exists():
             with open(HISTORY_DB, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -109,7 +130,11 @@ class DataManager:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
     
     def _load_vectors(self) -> Dict:
-        """加载向量数据"""
+        """加载向量数据文件
+
+        Returns:
+            向量数据字典，包含 embeddings 字典
+        """
         if VECTORS_DB.exists():
             with open(VECTORS_DB, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -125,7 +150,11 @@ class DataManager:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
     
     def _load_graph(self) -> Dict:
-        """加载图谱数据"""
+        """加载知识图谱文件
+
+        Returns:
+            图谱数据字典，包含 nodes 和 edges 列表
+        """
         if GRAPH_DB.exists():
             with open(GRAPH_DB, 'r', encoding='utf-8') as f:
                 return json.load(f)
@@ -141,26 +170,45 @@ class DataManager:
                 fcntl.flock(f.fileno(), fcntl.LOCK_UN)
     
     # ========== 文件元数据管理 ==========
-    
+
     def generate_file_id(self, filepath: str) -> str:
-        """生成文件 ID（使用 uuid4）"""
+        """生成唯一文件 ID
+
+        Args:
+            filepath: 文件路径（用于生成 ID，但不直接包含在 ID 中）
+
+        Returns:
+            唯一文件 ID，格式为 file_<uuid4 hex>
+        """
         return f"file_{uuid.uuid4().hex}"
-    
+
     def add_file_metadata(
         self,
         filepath: str,
-        filename: str = None,
+        filename: Optional[str] = None,
         description: str = "",
-        tags: List[str] = None,
+        tags: Optional[List[str]] = None,
         category: str = "uncategorized",
         project: str = "",
         **kwargs
     ) -> str:
         """
-        添加文件元数据
-        
+        添加文件元数据到数据库
+
+        Args:
+            filepath: 文件路径
+            filename: 文件名（可选，默认从路径提取）
+            description: 文件描述
+            tags: 标签列表
+            category: 分类
+            project: 所属项目
+            **kwargs: 其他元数据字段
+
         Returns:
-            file_id: 文件 ID
+            生成的文件 ID
+
+        Raises:
+            FileNotFoundError: 当文件不存在时抛出
         """
         filepath = Path(filepath)
         if not filepath.exists():
@@ -205,7 +253,14 @@ class DataManager:
         return file_id
     
     def get_file_metadata(self, file_id: str) -> Optional[Dict]:
-        """获取文件元数据"""
+        """获取文件元数据
+
+        Args:
+            file_id: 文件 ID
+
+        Returns:
+            文件元数据字典，不存在时返回 None
+        """
         file_data = self.metadata["files"].get(file_id)
         if file_data:
             # 更新访问记录
@@ -215,7 +270,15 @@ class DataManager:
         return file_data
     
     def update_file_metadata(self, file_id: str, **updates) -> bool:
-        """更新文件元数据"""
+        """更新文件元数据
+
+        Args:
+            file_id: 文件 ID
+            **updates: 要更新的字段
+
+        Returns:
+            是否更新成功（文件不存在时返回 False）
+        """
         if file_id not in self.metadata["files"]:
             return False
         
@@ -232,7 +295,14 @@ class DataManager:
         return True
     
     def delete_file_metadata(self, file_id: str) -> bool:
-        """删除文件元数据"""
+        """删除文件元数据及相关向量和图谱节点
+
+        Args:
+            file_id: 文件 ID
+
+        Returns:
+            是否删除成功（文件不存在时返回 False）
+        """
         if file_id not in self.metadata["files"]:
             return False
         
@@ -251,9 +321,18 @@ class DataManager:
         
         return True
     
-    def list_files(self, limit: int = 20, category: str = None, 
-                   tags: List[str] = None) -> List[Dict]:
-        """列出文件（支持筛选）"""
+    def list_files(self, limit: int = 20, category: Optional[str] = None,
+                   tags: Optional[List[str]] = None) -> List[Dict]:
+        """列出文件（支持筛选）
+
+        Args:
+            limit: 返回数量限制
+            category: 分类筛选（可选）
+            tags: 标签筛选（可选）
+
+        Returns:
+            文件列表，按创建时间倒序
+        """
         files = list(self.metadata["files"].values())
         
         # 按分类筛选
@@ -270,27 +349,31 @@ class DataManager:
         return files[:limit]
     
     # ========== 版本管理 ==========
-    
+
     def create_version(
         self,
         file_id: str,
         version_path: str,
-        version_name: str = None,
+        version_name: Optional[str] = None,
         description: str = "",
         change_type: str = "update"
     ) -> str:
         """
         创建新版本
-        
+
         Args:
             file_id: 文件 ID
             version_path: 版本文件路径
-            version_name: 版本名称（如 v1.0, v2.0）
+            version_name: 版本名称（如 v1.0, v2.0），默认自动生成
             description: 版本描述
             change_type: 变更类型 (create/update/rename/move)
-        
+
         Returns:
-            version_id: 版本 ID
+            版本 ID
+
+        Raises:
+            FileNotFoundError: 当版本文件不存在时抛出
+            ValueError: 当文件 ID 不存在时抛出
         """
         version_path = Path(version_path)
         if not version_path.exists():
@@ -335,14 +418,31 @@ class DataManager:
         return version_id
     
     def get_version_history(self, file_id: str) -> List[Dict]:
-        """获取文件版本历史"""
+        """获取文件版本历史
+
+        Args:
+            file_id: 文件 ID
+
+        Returns:
+            版本列表，按版本号倒序排列
+        """
         versions = [v for v in self.versions["versions"] 
                    if v["file_id"] == file_id]
         versions.sort(key=lambda x: x["version_number"], reverse=True)
         return versions
     
     def restore_version(self, version_id: str) -> bool:
-        """恢复指定版本"""
+        """恢复指定版本到文件
+
+        Args:
+            version_id: 版本 ID
+
+        Returns:
+            是否恢复成功（版本不存在时返回 False）
+
+        Raises:
+            FileNotFoundError: 当版本文件不存在时抛出
+        """
         version = None
         for v in self.versions["versions"]:
             if v["version_id"] == version_id:
@@ -377,8 +477,14 @@ class DataManager:
     
     # ========== 历史记录管理 ==========
     
-    def _log_operation(self, operation: str, file_id: str, details: Dict):
-        """记录操作历史"""
+    def _log_operation(self, operation: str, file_id: str, details: Dict) -> None:
+        """记录操作历史
+
+        Args:
+            operation: 操作类型（如 add_file, update_metadata 等）
+            file_id: 文件 ID
+            details: 操作详情字典
+        """
         record = {
             "operation_id": f"op_{int(time.time() * 1000)}",
             "operation": operation,
@@ -395,9 +501,17 @@ class DataManager:
         
         self._save_history()
     
-    def get_operation_history(self, file_id: str = None, 
+    def get_operation_history(self, file_id: Optional[str] = None,
                              limit: int = 50) -> List[Dict]:
-        """获取操作历史"""
+        """获取操作历史
+
+        Args:
+            file_id: 文件 ID（可选，只获取该文件的历史）
+            limit: 返回数量限制
+
+        Returns:
+            操作历史记录列表，按时间倒序
+        """
         operations = self.history["operations"]
         
         if file_id:
@@ -408,9 +522,18 @@ class DataManager:
     
     # ========== 向量数据管理 ==========
     
-    def save_embedding(self, file_id: str, embedding: List[float], 
+    def save_embedding(self, file_id: str, embedding: List[float],
                       model: str = "text-embedding-v4") -> bool:
-        """保存文件向量"""
+        """保存文件向量
+
+        Args:
+            file_id: 文件 ID
+            embedding: 向量数据
+            model: 模型名称
+
+        Returns:
+            是否保存成功
+        """
         self.vectors["embeddings"][file_id] = {
             "embedding": embedding,
             "model": model,
@@ -422,25 +545,50 @@ class DataManager:
         return True
     
     def get_embedding(self, file_id: str) -> Optional[List[float]]:
-        """获取文件向量"""
+        """获取文件向量
+
+        Args:
+            file_id: 文件 ID
+
+        Returns:
+            向量数据，不存在时返回 None
+        """
         emb_data = self.vectors["embeddings"].get(file_id)
         if emb_data:
             return emb_data["embedding"]
         return None
     
     def has_embedding(self, file_id: str) -> bool:
-        """检查是否有向量"""
+        """检查文件是否有向量
+
+        Args:
+            file_id: 文件 ID
+
+        Returns:
+            是否有向量数据
+        """
         return file_id in self.vectors["embeddings"]
     
     def get_all_embeddings(self) -> Dict[str, List[float]]:
-        """获取所有向量"""
+        """获取所有文件的向量
+
+        Returns:
+            文件 ID 到向量的映射字典
+        """
         return {
             file_id: data["embedding"] 
             for file_id, data in self.vectors["embeddings"].items()
         }
     
     def delete_embedding(self, file_id: str) -> bool:
-        """删除向量"""
+        """删除文件向量
+
+        Args:
+            file_id: 文件 ID
+
+        Returns:
+            是否删除成功（文件不存在时返回 False）
+        """
         if file_id in self.vectors["embeddings"]:
             del self.vectors["embeddings"][file_id]
             self._save_vectors()
@@ -449,8 +597,13 @@ class DataManager:
     
     # ========== 知识图谱管理 ==========
     
-    def _add_file_to_graph(self, file_id: str, metadata: Dict):
-        """添加文件到图谱"""
+    def _add_file_to_graph(self, file_id: str, metadata: Dict) -> None:
+        """添加文件到知识图谱
+
+        Args:
+            file_id: 文件 ID
+            metadata: 文件元数据
+        """
         node = {
             "id": file_id,
             "type": "file",
@@ -505,8 +658,12 @@ class DataManager:
         
         self._save_graph()
     
-    def _remove_from_graph(self, file_id: str):
-        """从图谱中移除文件"""
+    def _remove_from_graph(self, file_id: str) -> None:
+        """从知识图谱中移除文件节点及相关边
+
+        Args:
+            file_id: 文件 ID
+        """
         # 移除节点
         self.graph["nodes"] = [n for n in self.graph["nodes"] 
                               if n["id"] != file_id]
@@ -517,9 +674,15 @@ class DataManager:
         
         self._save_graph()
     
-    def add_graph_edge(self, source_id: str, target_id: str, 
-                      edge_type: str = "related_to"):
-        """添加图谱边"""
+    def add_graph_edge(self, source_id: str, target_id: str,
+                      edge_type: str = "related_to") -> None:
+        """添加知识图谱边
+
+        Args:
+            source_id: 源节点 ID
+            target_id: 目标节点 ID
+            edge_type: 边类型
+        """
         edge = {
             "source": source_id,
             "target": target_id,
@@ -533,9 +696,17 @@ class DataManager:
             "type": edge_type
         })
     
-    def get_related_files(self, file_id: str, 
+    def get_related_files(self, file_id: str,
                          max_depth: int = 2) -> List[Dict]:
-        """获取相关文件（基于图谱）"""
+        """获取相关文件（基于图谱或相似度）
+
+        Args:
+            file_id: 文件 ID
+            max_depth: 最大深度（1=直接关联，2=间接关联）
+
+        Returns:
+            相关文件列表，包含文件信息和关联类型
+        """
         if not HAS_NETWORKX:
             # 简化版本（无 networkx）
             related = []
@@ -621,7 +792,11 @@ class DataManager:
         return related
     
     def get_graph_stats(self) -> Dict:
-        """获取图谱统计"""
+        """获取知识图谱统计信息
+
+        Returns:
+            图谱统计字典，包含节点数、边数和类型分布
+        """
         node_types = defaultdict(int)
         for node in self.graph["nodes"]:
             node_types[node.get("type", "unknown")] += 1
@@ -640,7 +815,11 @@ class DataManager:
     # ========== 综合统计 ==========
     
     def get_full_stats(self) -> Dict:
-        """获取完整统计"""
+        """获取完整统计信息
+
+        Returns:
+            包含所有子系统统计的字典：metadata、versions、history、vectors、graph
+        """
         files = list(self.metadata["files"].values())
         
         by_category = defaultdict(int)
@@ -675,8 +854,8 @@ class DataManager:
             "graph": self.get_graph_stats()
         }
     
-    def print_stats(self):
-        """打印统计信息"""
+    def print_stats(self) -> None:
+        """打印统计信息到控制台"""
         stats = self.get_full_stats()
         
         print("\n📊 数据管理统计 v4.0")

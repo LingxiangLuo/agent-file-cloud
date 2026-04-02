@@ -27,23 +27,29 @@ except ImportError:
 
 
 class EmbeddingAPI:
-    """阿里云 DashScope Embedding API 封装（urllib 版本）"""
-    
+    """阿里云 DashScope Embedding API 封装（urllib 版本）
+
+    支持文本向量化和余弦相似度计算，用于语义搜索和相似推荐。
+    """
+
     def __init__(
         self,
-        config_file: Path = None,
-        api_key: str = None,
+        config_file: Optional[Path] = None,
+        api_key: Optional[str] = None,
         model: str = "text-embedding-v4",
         dimension: int = 1024
-    ):
+    ) -> None:
         """
         初始化 Embedding API
-        
+
         Args:
-            config_file: 配置文件路径（可选）
-            api_key: 阿里云 API Key（可选，优先从配置加载）
-            model: 模型名称
-            dimension: 向量维度
+            config_file: 配置文件路径（可选），默认从技能目录加载 config.json
+            api_key: 阿里云 API Key（可选），优先从配置加载，其次环境变量
+            model: 模型名称，默认 text-embedding-v4
+            dimension: 向量维度，默认 1024
+
+        Raises:
+            ValueError: 当 API Key 未配置时抛出
         """
         # 不再依赖 dashscope 库，直接使用 urllib
         
@@ -64,8 +70,20 @@ class EmbeddingAPI:
         self.total_tokens = 0
         self.last_call = None
     
-    def _load_api_key(self, config_file: Path = None) -> str:
-        """从配置或环境变量加载 API Key"""
+    def _load_api_key(self, config_file: Optional[Path] = None) -> str:
+        """从配置或环境变量加载 API Key
+
+        加载优先级：
+        1. 环境变量 DASHSCOPE_API_KEY
+        2. 配置文件 config.json 中的 api.dashscope_api_key
+        3. 空字符串
+
+        Args:
+            config_file: 配置文件路径（可选）
+
+        Returns:
+            API Key 字符串，未找到时返回空字符串
+        """
         # 1. 环境变量
         api_key = os.getenv("DASHSCOPE_API_KEY")
         if api_key:
@@ -88,14 +106,20 @@ class EmbeddingAPI:
     def create_embedding(self, text: str, text_type: str = 'document', max_retries: int = 3) -> List[float]:
         """
         创建文本向量（使用 urllib 直接调用 API，带重试机制）
-        
+
         Args:
             text: 输入文本
-            text_type: 文本类型 (document/query)
-            max_retries: 最大重试次数
-        
+            text_type: 文本类型，'document' 为文档，'query' 为搜索查询
+            max_retries: 最大重试次数，默认 3 次
+
         Returns:
-            向量列表
+            向量列表，长度为 dimension（默认 1024）
+
+        Raises:
+            Exception: 当 API 调用失败（重试后）时抛出
+
+        Note:
+            使用指数退避策略：2s, 4s, 8s
         """
         url = "https://dashscope.aliyuncs.com/api/v1/services/embeddings/text-embedding/text-embedding"
         headers = {
@@ -148,13 +172,16 @@ class EmbeddingAPI:
     def cosine_similarity(self, vec1: List[float], vec2: List[float]) -> float:
         """
         计算余弦相似度（支持 numpy 和纯 Python 实现）
-        
+
         Args:
             vec1: 向量 1
             vec2: 向量 2
-        
+
         Returns:
-            相似度 (0-1)
+            相似度值，范围 [-1, 1]，值越大表示越相似
+
+        Note:
+            当 numpy 可用时使用 numpy 实现（更快），否则降级为纯 Python 实现
         """
         if HAS_NUMPY and np is not None:
             # numpy 实现（更快）
@@ -177,8 +204,17 @@ class EmbeddingAPI:
                 return 0.0
             return dot_product / (norm1 * norm2)
     
-    def get_stats(self) -> dict:
-        """获取使用统计"""
+    def get_stats(self) -> Dict[str, Optional[str]]:
+        """获取使用统计
+
+        Returns:
+            包含统计信息的字典：
+            - call_count: API 调用次数
+            - total_tokens: 消耗的 token 总数
+            - last_call: 最后一次调用时间
+            - model: 使用的模型名称
+            - dimension: 向量维度
+        """
         return {
             "call_count": self.call_count,
             "total_tokens": self.total_tokens,

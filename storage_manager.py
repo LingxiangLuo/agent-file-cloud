@@ -63,32 +63,52 @@ DISTRIBUTION_KEYWORDS = ["分享", "传播", "发布", "公开", "external", "pu
 
 
 class StorageManager:
-    """智能存储管理器 v4.0（基于 DataManager）"""
-    
-    def __init__(self):
-        """初始化存储管理器"""
+    """智能存储管理器 v4.0（基于 DataManager）
+
+    负责文件存储策略决策、七牛云上传、分享链接生成等功能。
+    根据文件类型（热/温/冷）和传播需求智能决策存储位置。
+    """
+
+    def __init__(self) -> None:
+        """初始化存储管理器，加载 DataManager 和七牛云配置"""
         self.dm = DataManager()  # 使用 DataManager
         self.config = self.dm.config
         self.qiniu_history = self._load_qiniu_history()
         self.categories = FILE_CATEGORIES
     
     def _load_qiniu_history(self) -> Dict:
-        """加载七牛云上传历史"""
+        """加载七牛云上传历史记录
+
+        Returns:
+            七牛云历史数据字典，包含 files 列表
+        """
         qiniu_history_file = SKILL_DIR / "config" / "qiniu_files.json"
         if qiniu_history_file.exists():
             with open(qiniu_history_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
         return {"files": []}
     
-    def _save_qiniu_history(self):
-        """保存七牛云上传历史"""
+    def _save_qiniu_history(self) -> None:
+        """保存七牛云上传历史记录到文件"""
         qiniu_history_file = SKILL_DIR / "config" / "qiniu_files.json"
         qiniu_history_file.parent.mkdir(parents=True, exist_ok=True)
         with open(qiniu_history_file, 'w', encoding='utf-8') as f:
             json.dump(self.qiniu_history, f, indent=2, ensure_ascii=False)
     
     def get_file_category(self, filepath: str) -> str:
-        """判断文件类型：hot/warm/cold"""
+        """判断文件类型（热/温/冷）
+
+        分类规则：
+        - 热文件：脚本/代码文件（.py, .sh, .js 等）
+        - 冷文件：文档/媒体文件（.md, .pdf, .png 等）
+        - 温文件：数据/配置文件（.json, .xml, .log 等）
+
+        Args:
+            filepath: 文件路径
+
+        Returns:
+            文件类型：'hot'、'warm' 或 'cold'
+        """
         ext = Path(filepath).suffix.lower()
         filename = Path(filepath).name.lower()
         
@@ -101,9 +121,11 @@ class StorageManager:
         return "warm"
     
     def check_distribution_need(self, file_metadata: Dict) -> Tuple[bool, List[str]]:
-        """
-        检查文件是否有传播/分享需求
-        
+        """检查文件是否有传播/分享需求
+
+        Args:
+            file_metadata: 文件元数据
+
         Returns:
             (是否有传播需求，传播渠道列表)
         """
@@ -130,9 +152,11 @@ class StorageManager:
         return has_need, channels
     
     def should_upload_to_cloud(self, file_metadata: Dict) -> Tuple[bool, str]:
-        """
-        智能决策是否应该上传到云端
-        
+        """智能决策是否应该上传到云端
+
+        Args:
+            file_metadata: 文件元数据
+
         Returns:
             (是否上传，原因)
         """
@@ -157,21 +181,20 @@ class StorageManager:
         else:
             return False, "温文件，无传播需求，本地存储"
     
-    def upload_to_qiniu(self, filepath: str, tags: List[str] = None, 
-                       description: str = "", expiry_days: int = None,
+    def upload_to_qiniu(self, filepath: str, tags: Optional[List[str]] = None,
+                       description: str = "", expiry_days: Optional[int] = None,
                        force_upload: bool = False) -> Dict:
-        """
-        智能上传文件到七牛云
-        
+        """智能上传文件到七牛云
+
         Args:
             filepath: 文件路径
-            tags: 标签列表
+            tags: 标签列表（可选）
             description: 描述
-            expiry_days: 有效期（天），默认使用配置
-            force_upload: 强制上传（跳过智能决策）
-        
+            expiry_days: 有效期天数（可选），默认使用配置
+            force_upload: 是否强制上传（跳过智能决策）
+
         Returns:
-            上传结果，包含下载链接
+            上传结果字典，包含 success/error、download_url 等字段
         """
         filepath = Path(filepath)
         if not filepath.exists():
@@ -299,14 +322,26 @@ class StorageManager:
             }
     
     def _find_qiniu_duplicate(self, file_hash: str) -> Optional[Dict]:
-        """查找七牛云中的重复文件"""
+        """查找七牛云中具有相同哈希值的已上传文件
+
+        Args:
+            file_hash: 文件 MD5 哈希值
+
+        Returns:
+            重复文件记录，不存在时返回 None
+        """
         for f in self.qiniu_history["files"]:
             if f.get("file_hash") == file_hash and f["status"] == "active":
                 return f
         return None
     
-    def _update_local_db(self, filepath: Path, qiniu_record: Dict):
-        """更新本地数据库，添加七牛云信息"""
+    def _update_local_db(self, filepath: Path, qiniu_record: Dict) -> None:
+        """更新本地数据库，添加七牛云上传信息
+
+        Args:
+            filepath: 文件路径
+            qiniu_record: 七牛云上传记录
+        """
         # 使用 DataManager 更新文件元数据
         for file_id, file_data in self.dm.metadata["files"].items():
             if file_data["path"] == str(filepath):
@@ -319,11 +354,25 @@ class StorageManager:
                 break
     
     def _generate_qiniu_id(self, filename: str) -> str:
-        """生成七牛云文件 ID（使用 uuid4）"""
+        """生成唯一的七牛云文件 ID
+
+        Args:
+            filename: 文件名（用于标识，但不直接包含在 ID 中）
+
+        Returns:
+            七牛云文件 ID，格式为 qiniu_<uuid4 hex>
+        """
         return f"qiniu_{uuid.uuid4().hex}"
     
     def get_download_url(self, file_id: str) -> Optional[str]:
-        """获取文件的下载链接"""
+        """获取文件的下载链接
+
+        Args:
+            file_id: 文件 ID
+
+        Returns:
+            下载链接，不存在时返回 None
+        """
         # 在七牛云历史中查找
         for f in self.qiniu_history["files"]:
             if f["file_id"] == file_id:
