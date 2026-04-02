@@ -3,17 +3,17 @@
   "created": "2026-03-30",
   
   "api": {
-    "dashscope_api_key": "sk-c2581d9b3ec24fe490a2ea638ebb818b",
+    "dashscope_api_key": "YOUR_DASHSCOPE_API_KEY_HERE",
     "embedding_model": "text-embedding-v4",
     "dimension": 1024
   },
   
   "qiniu": {
-    "access_key": "6AXAOMAqMLaXr1Gwvl-5Z5r68XI28qkc0am23eGd",
-    "secret_key": "GR66FEUEktLh0SN0ace12ms9N-xN30YlVqqNQo8R",
-    "bucket": "copaw-workfile",
-    "domain": "https://cdn.lingxiangluo.tech",
-    "graph_domain": "http://file.lingxiangluo.tech",
+    "access_key": "YOUR_QINIU_ACCESS_KEY_HERE",
+    "secret_key": "YOUR_QINIU_SECRET_KEY_HERE",
+    "bucket": "your-bucket-name",
+    "domain": "https://your-cdn-domain.com",
+    "graph_domain": "http://your-graph-domain.com",
     "default_expiry_days": 7
   },
   
