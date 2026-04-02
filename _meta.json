@@ -1,0 +1,15 @@
+{
+  "ownerId": "kn796gme8ra5magcj2xm9pk4gs82a06m",
+  "slug": "agent-file-cloud",
+  "version": "4.0.0",
+  "publishedAt": 1774864800000,
+  "displayName": "Agent File Cloud",
+  "description": "智能文件管理 - 语义搜索 + 七牛云存储 + 知识图谱",
+  "features": [
+    "semantic_search",
+    "qiniu_upload",
+    "knowledge_graph",
+    "version_control",
+    "hybrid_recommend"
+  ]
+}

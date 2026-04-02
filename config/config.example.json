@@ -1,0 +1,38 @@
+{
+  "version": "4.0.0",
+  "created": "2026-03-30",
+  
+  "api": {
+    "dashscope_api_key": "sk-c2581d9b3ec24fe490a2ea638ebb818b",
+    "embedding_model": "text-embedding-v4",
+    "dimension": 1024
+  },
+  
+  "qiniu": {
+    "access_key": "6AXAOMAqMLaXr1Gwvl-5Z5r68XI28qkc0am23eGd",
+    "secret_key": "GR66FEUEktLh0SN0ace12ms9N-xN30YlVqqNQo8R",
+    "bucket": "copaw-workfile",
+    "domain": "https://cdn.lingxiangluo.tech",
+    "graph_domain": "http://file.lingxiangluo.tech",
+    "default_expiry_days": 7
+  },
+  
+  "directories": {
+    "inbox": "workspace/inbox",
+    "archive": "workspace/archive",
+    "temp": "workspace/temp"
+  },
+  
+  "storage_policy": {
+    "hot_extensions": [".py", ".sh", ".js", ".ts", ".go", ".rs", ".yaml", ".yml"],
+    "cold_extensions": [".md", ".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".mp4", ".docx", ".pptx", ".xlsx"],
+    "warm_extensions": [".json", ".xml", ".log", ".txt", ".csv"]
+  },
+  
+  "features": {
+    "enable_semantic_search": true,
+    "enable_auto_upload": true,
+    "enable_duplicate_check": true,
+    "enable_version_control": true
+  }
+}

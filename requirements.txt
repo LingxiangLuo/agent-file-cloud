@@ -1,0 +1,18 @@
+# Agent File Cloud - Python 依赖
+
+# 核心依赖
+dashscope>=1.0.0          # 阿里云百炼 Embedding API（可选，代码使用 urllib 直接调用）
+numpy>=1.24.0             # 数值计算（向量相似度）
+faiss-cpu>=1.7.0          # 向量索引加速（大数据量时必需）
+
+# 云存储
+qiniu>=7.17.0             # 七牛云 SDK
+
+# 图谱分析
+networkx>=3.0             # 图谱分析（可选）
+
+# 可选依赖
+openai>=1.0.0             # OpenAI 兼容 API（可选）
+
+# 开发依赖
+pytest>=7.0.0             # 测试框架

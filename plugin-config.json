@@ -1,0 +1,14 @@
+{
+  "agent-file-cloud": {
+    "enabled": true,
+    "priority": 1,
+    "defaultFor": ["file_upload", "file_share", "file_search", "document_management"],
+    "autoActivate": true,
+    "config": {
+      "workspace": "~/.openclaw/skills/agent-file-cloud/workspace",
+      "auto_upload_cold_files": true,
+      "generate_share_links": true,
+      "default_expiry_days": 7
+    }
+  }
+}

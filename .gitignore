@@ -1,0 +1,61 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Sensitive - DO NOT COMMIT
+config/secrets.json
+.env
+*.env
+credentials.json
+*.key
+*.pem
+
+# Build artifacts
+*.egg-info/
+dist/
+build/
+
+# Logs
+*.log
+logs/
+
+# Test artifacts
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Large files
+*.html
+graph_index*.html
+*.tmp
+
+# site-packages (installed dependencies)
+site-packages/
+
+# Workspace data
+workspace/inbox/*
+workspace/archive/*
+workspace/temp/*
+!workspace/.gitkeep
+
+# Memory data (contains user-specific info)
+memory/*.jsonl
+memory/ontology/

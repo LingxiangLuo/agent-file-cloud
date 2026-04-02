@@ -1,0 +1,37 @@
+{
+  "version": "3.0",
+  "created": "2026-03-30",
+  
+  "api": {
+    "dashscope_api_key": "",
+    "embedding_model": "text-embedding-v4",
+    "dimension": 1024
+  },
+  
+  "qiniu": {
+    "access_key": "",
+    "secret_key": "",
+    "bucket": "",
+    "domain": "",
+    "default_expiry_days": 7
+  },
+  
+  "directories": {
+    "inbox": "workspace/inbox",
+    "archive": "workspace/archive",
+    "temp": "workspace/temp"
+  },
+  
+  "storage_policy": {
+    "hot_extensions": [".py", ".sh", ".js", ".yaml", ".yml", ".ts", ".go", ".rs"],
+    "cold_extensions": [".md", ".pdf", ".png", ".jpg", ".mp4", ".docx", ".pptx", ".xlsx"],
+    "warm_extensions": [".json", ".xml", ".log", ".txt", ".csv"]
+  },
+  
+  "features": {
+    "enable_semantic_search": true,
+    "enable_auto_upload": false,
+    "enable_duplicate_check": true,
+    "enable_version_control": true
+  }
+}
