@@ -31,6 +31,9 @@ WORKSPACE_ROOT = Path(os.getenv(
     SKILL_DIR / "workspace"
 ))
 
+# 允许的文件根目录（用于路径遍历验证）
+ALLOWED_ROOT_DIR = str(WORKSPACE_ROOT)
+
 # 配置文件（统一配置）
 CONFIG_FILE = SKILL_DIR / "config" / "config.json"
 DB_FILE = SKILL_DIR / "config" / "files.json"
@@ -93,19 +96,37 @@ def load_db() -> Dict:
 def save_db(db: Dict) -> None:
     """保存数据库（带文件锁）"""
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(DB_FILE, 'w', encoding='utf-8') as f:
-        fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+    lock_path = DB_FILE.with_suffix('.lock')
+
+    with open(lock_path, 'w', encoding='utf-8') as lock_file:
         try:
-            json.dump(db, f, ensure_ascii=False, indent=2)
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
+            with open(DB_FILE, 'w', encoding='utf-8') as f:
+                json.dump(db, f, ensure_ascii=False, indent=2)
         finally:
-            fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            fcntl.flock(lock_file.fileno(), fcntl.LOCK_UN)
+
+
+def is_safe_path(base_dir: str, target_path: str) -> bool:
+    """验证目标路径是否在基础目录内，防止路径遍历攻击"""
+    try:
+        base = Path(base_dir).resolve()
+        target = Path(target_path).resolve()
+        # 如果 target 是相对路径，先转换为绝对路径
+        if not target.is_absolute():
+            target = (Path.cwd() / target).resolve()
+        # 检查 target 是否在 base 目录内
+        target.relative_to(base)
+        return True
+    except (ValueError, RuntimeError):
+        return False
 
 
 def generate_file_id(filepath: str) -> str:
-    """生成唯一文件 ID"""
-    timestamp = int(time.time() * 1000)
-    hash_val = hashlib.md5(f"{filepath}{timestamp}".encode()).hexdigest()[:8]
-    return f"file_{timestamp}_{hash_val}"
+    """生成唯一文件 ID（使用 UUID 确保唯一性）"""
+    import uuid
+    unique_id = uuid.uuid4()
+    return f"file_{unique_id.hex[:16]}"
 
 
 def extract_keywords(text: str, max_keywords: int = 10) -> List[str]:
@@ -175,20 +196,24 @@ class AgentFileCloud:
     ) -> Dict:
         """
         添加文件到数据库
-        
+
         Args:
             filepath: 文件路径
             description: 文件描述
             tags: 标签列表
             category: 分类
             project: 所属项目
-        
+
         Returns:
             添加结果
         """
         filepath = Path(filepath)
         if not filepath.exists():
             return {"error": f"文件不存在：{filepath}"}
+
+        # 安全验证：防止路径遍历攻击
+        if not is_safe_path(ALLOWED_ROOT_DIR, str(filepath)):
+            return {"error": f"文件路径超出允许范围：{filepath}"}
         
         # 生成元数据
         file_id = generate_file_id(str(filepath))
