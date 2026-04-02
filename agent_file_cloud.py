@@ -38,6 +38,20 @@ ALLOWED_ROOT_DIR = str(WORKSPACE_ROOT)
 CONFIG_FILE = SKILL_DIR / "config" / "config.json"
 DB_FILE = SKILL_DIR / "config" / "files.json"
 
+# 配置验证导入
+try:
+    from config_validator import (
+        validate_config,
+        check_config_integrity,
+        check_api_config,
+        check_qiniu_config,
+        print_config_status,
+        ValidationError
+    )
+    HAS_CONFIG_VALIDATOR = True
+except ImportError:
+    HAS_CONFIG_VALIDATOR = False
+
 
 def ensure_directories():
     """确保必要目录存在"""
@@ -52,11 +66,30 @@ def ensure_directories():
 
 
 def load_config() -> Dict:
-    """加载统一配置"""
+    """加载统一配置
+
+    Returns:
+        配置字典，验证失败时返回默认配置
+
+    Note:
+        启动时会验证配置完整性，验证失败时会打印警告信息
+    """
     if CONFIG_FILE.exists():
         try:
             with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                config = json.load(f)
+
+            # 验证配置完整性
+            if HAS_CONFIG_VALIDATOR:
+                is_valid, message, errors = check_config_integrity(CONFIG_FILE)
+                if not is_valid:
+                    print(f"⚠️ 配置验证失败：{message}")
+                    if errors:
+                        print("\n详细问题:")
+                        for error in errors:
+                            icon = "❌" if error.severity == "error" else "⚠️"
+                            print(f"  {icon} {error.field}: {error.message}")
+                    print("\n💡 请复制 config/config.example.json 并完善配置")
         except json.JSONDecodeError as e:
             print(f"⚠️ 配置文件解析错误：{e}，使用默认配置")
 
@@ -152,14 +185,18 @@ def extract_keywords(text: str, max_keywords: int = 10) -> List[str]:
 
 
 class AgentFileCloud:
-    """Agent File Cloud 主类"""
-    
-    def __init__(self, verbose: bool = True):
+    """Agent File Cloud 主类
+
+    提供文件管理、语义搜索、相似推荐和存储管理功能。
+    """
+
+    def __init__(self, verbose: bool = True, check_config: bool = True):
         """
         初始化系统
-        
+
         Args:
             verbose: 是否显示详细输出
+            check_config: 是否在启动时检查配置完整性
         """
         self.verbose = verbose
         self.config = load_config()
@@ -168,7 +205,11 @@ class AgentFileCloud:
         
         # 确保目录存在
         ensure_directories()
-        
+
+        # 配置完整性检查
+        if check_config and verbose and HAS_CONFIG_VALIDATOR:
+            print_config_status(self.config)
+
         if self.verbose:
             print("🚀 初始化 Agent File Cloud 智能文件管理系统...")
         
