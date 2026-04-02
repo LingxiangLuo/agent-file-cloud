@@ -36,7 +36,6 @@ from data_manager import DataManager
 # 技能目录
 SKILL_DIR = Path(__file__).parent
 CONFIG_FILE = SKILL_DIR / "config" / "config.json"
-DB_FILE = SKILL_DIR / "config" / "files.json"
 QININIU_HISTORY_FILE = SKILL_DIR / "config" / "qiniu_files.json"
 
 # 文件类型分类
@@ -308,16 +307,16 @@ class StorageManager:
     
     def _update_local_db(self, filepath: Path, qiniu_record: Dict):
         """更新本地数据库，添加七牛云信息"""
-        for f in self.db["files"]:
-            if f["path"] == str(filepath):
-                f["qiniu_id"] = qiniu_record["file_id"]
-                f["qiniu_url"] = qiniu_record["download_url"]
-                f["qiniu_expiry"] = qiniu_record["expiry_time"]
+        # 使用 DataManager 更新文件元数据
+        for file_id, file_data in self.dm.metadata["files"].items():
+            if file_data["path"] == str(filepath):
+                self.dm.update_file_metadata(
+                    file_id,
+                    qiniu_id=qiniu_record["file_id"],
+                    qiniu_url=qiniu_record["download_url"],
+                    qiniu_expiry=qiniu_record["expiry_time"]
+                )
                 break
-        
-        # 保存数据库
-        with open(DB_FILE, 'w', encoding='utf-8') as f:
-            json.dump(self.db, f, indent=2, ensure_ascii=False)
     
     def _generate_qiniu_id(self, filename: str) -> str:
         """生成七牛云文件 ID（使用 uuid4）"""
@@ -329,12 +328,12 @@ class StorageManager:
         for f in self.qiniu_history["files"]:
             if f["file_id"] == file_id:
                 return f["download_url"]
-        
-        # 在本地数据库中查找
-        for f in self.db["files"]:
-            if f.get("qiniu_id") == file_id:
-                return f.get("qiniu_url")
-        
+
+        # 在 DataManager 中查找
+        file_data = self.dm.get_file_metadata(file_id)
+        if file_data:
+            return file_data.get("qiniu_url")
+
         return None
     
     def format_share_message(self, file_id: str) -> Optional[str]:
@@ -498,16 +497,16 @@ class StorageManager:
     
     def analyze_all_files(self) -> List[Dict]:
         """分析所有文件"""
-        return [self.analyze_file(f) for f in self.db.get("files", [])]
+        return [self.analyze_file(f) for f in self.dm.metadata.get("files", {}).values()]
     
     def get_storage_stats(self) -> Dict:
         """获取存储统计"""
         analyses = self.analyze_all_files()
-        
+
         stats = {
             "total_files": len(analyses),
             "total_size": sum(
-                next((f.get("size", 0) for f in self.db["files"] 
+                next((f.get("size", 0) for f in self.dm.metadata["files"].values()
                       if f.get("id") == a["file_id"]), 0)
                 for a in analyses
             ),
