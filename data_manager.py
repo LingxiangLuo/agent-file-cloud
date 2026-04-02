@@ -14,6 +14,7 @@ import json
 import hashlib
 import time
 import fcntl
+import uuid
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Set, Tuple
@@ -142,10 +143,8 @@ class DataManager:
     # ========== 文件元数据管理 ==========
     
     def generate_file_id(self, filepath: str) -> str:
-        """生成文件 ID"""
-        timestamp = str(int(time.time() * 1000))
-        unique = hashlib.md5(f"{filepath}{timestamp}".encode()).hexdigest()[:8]
-        return f"file_{timestamp}_{unique}"
+        """生成文件 ID（使用 uuid4）"""
+        return f"file_{uuid.uuid4().hex}"
     
     def add_file_metadata(
         self,

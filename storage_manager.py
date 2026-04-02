@@ -18,6 +18,7 @@
 import json
 import hashlib
 import time
+import uuid
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
@@ -319,10 +320,8 @@ class StorageManager:
             json.dump(self.db, f, indent=2, ensure_ascii=False)
     
     def _generate_qiniu_id(self, filename: str) -> str:
-        """生成七牛云文件 ID"""
-        timestamp = str(int(time.time() * 1000))
-        unique = hashlib.md5(f"{filename}{timestamp}".encode()).hexdigest()[:8]
-        return f"qiniu_{timestamp}_{unique}"
+        """生成七牛云文件 ID（使用 uuid4）"""
+        return f"qiniu_{uuid.uuid4().hex}"
     
     def get_download_url(self, file_id: str) -> Optional[str]:
         """获取文件的下载链接"""
