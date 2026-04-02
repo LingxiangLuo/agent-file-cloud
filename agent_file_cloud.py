@@ -208,12 +208,13 @@ class AgentFileCloud:
             添加结果
         """
         filepath = Path(filepath)
-        if not filepath.exists():
-            return {"error": f"文件不存在：{filepath}"}
 
-        # 安全验证：防止路径遍历攻击
+        # 安全验证：防止路径遍历攻击（在检查文件存在之前先验证路径）
         if not is_safe_path(ALLOWED_ROOT_DIR, str(filepath)):
             return {"error": f"文件路径超出允许范围：{filepath}"}
+
+        if not filepath.exists():
+            return {"error": f"文件不存在：{filepath}"}
         
         # 生成元数据
         file_id = generate_file_id(str(filepath))
